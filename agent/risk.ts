@@ -47,7 +47,10 @@ export function chooseBid(
   const lo = f.defaultFeeWei;
   const hi = f.maxFeeWei >= lo ? f.maxFeeWei : lo;
   let bid = floor > lo ? floor : lo;
-  const comp = BigInt(Math.floor(Number(f.maxCompetitorFeeWei) * params.exec.competitorBidMult));
+  let compRaw = f.maxCompetitorFeeWei;
+  // The environment's oracle/keeper transactions bid above the participant cap; they are not rivals.
+  if (params.exec.ignoreSystemFees && compRaw > hi) compRaw = 0n;
+  const comp = BigInt(Math.floor(Number(compRaw) * params.exec.competitorBidMult));
   if (comp > bid) bid = comp;
   if (aggressive) bid = hi;
   // Profit ceiling (wei per gas).
@@ -55,6 +58,7 @@ export function chooseBid(
     const ceilWei = BigInt(
       Math.floor(((expectedProfitUsd * params.exec.bidProfitFraction) / ethUsd / gasUnits) * 1e18),
     );
+    if (expectedProfitUsd >= params.exec.aggressiveProfitUsd && ceilWei > bid) bid = ceilWei;
     if (bid > ceilWei) bid = ceilWei;
   }
   if (bid < lo) bid = lo;

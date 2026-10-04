@@ -6,7 +6,7 @@ import type { Params, RegimeProfile } from "./config.js";
 import type { Features } from "./features.js";
 import type { Opportunity } from "./opportunity.js";
 import type { Quoter } from "./quotes.js";
-import { conservativeFair, slippageFor } from "./arbitrage.js";
+import { markFor, slippageFor } from "./arbitrage.js";
 import { inventoryPenalty } from "./risk.js";
 
 export async function refineSingle(
@@ -21,7 +21,7 @@ export async function refineSingle(
   const bf = f.bases[base];
   if (!bf) return o;
   const side = o.side;
-  const fairC = conservativeFair(side, bf.fair, bf.forecast);
+  const fairC = markFor(side, bf, params);
   const decIn = side === "buy" ? 6 : bf.decimals;
   const decOut = side === "buy" ? bf.decimals : 6;
 

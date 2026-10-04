@@ -76,9 +76,24 @@ export function evalSingle(v: VenueFeature, side: Side, amountIn: number, fairC:
   };
 }
 
-/** Conservative fair for a side: the stale fair or its extrapolation, whichever pays us less. */
-export function conservativeFair(side: Side, fair: number, forecast: number): number {
-  return side === "buy" ? Math.min(fair, forecast) : Math.max(fair, forecast);
+/**
+ * The mark a trade is valued at. Conservative between the stale fair and its one-block
+ * extrapolation (whichever pays us less), plus the haircut expected reversion toward the anchor
+ * when terminal valuation is on (terminal = fair otherwise, so the reversion term is zero).
+ */
+export function conservativeFair(
+  side: Side,
+  fair: number,
+  forecast: number,
+  terminal: number = fair,
+  haircut = 0,
+): number {
+  const base = side === "buy" ? Math.min(fair, forecast) : Math.max(fair, forecast);
+  return base + (terminal - fair) * (1 - haircut);
+}
+
+export function markFor(side: Side, b: { fair: number; forecast: number; terminal: number }, params: Params): number {
+  return conservativeFair(side, b.fair, b.forecast, b.terminal, params.valuation.haircut);
 }
 
 export function singleLegCandidates(sc: ScanContext): { opps: Opportunity[]; rejected: Rejection[] } {
@@ -96,8 +111,8 @@ export function singleLegCandidates(sc: ScanContext): { opps: Opportunity[]; rej
       rejected.push({ key: v.key, reason: "cooldown" });
       continue;
     }
-    const side: Side = v.gapBps > 0 ? "buy" : "sell";
-    const fairC = conservativeFair(side, bf.fair, bf.forecast);
+    const side: Side = markFor("buy", bf, params) > v.mid ? "buy" : "sell";
+    const fairC = markFor(side, bf, params);
     const edgeBps = (side === "buy" ? fairC / v.mid - 1 : 1 - fairC / v.mid) * 1e4 - v.feeBps;
     if (!(edgeBps > profile.safetyBps)) {
       rejected.push({ key: v.key, reason: "inside fee band" });

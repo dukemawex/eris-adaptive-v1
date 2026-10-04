@@ -311,3 +311,52 @@ test("params: env override merges known keys only", () => {
   assert.ok(!("bogus" in p.risk) && !("nope" in p));
   assert.equal(loadParams({ ERIS_ADAPTIVE_PARAMS: "{not json" }), DEFAULT_PARAMS);
 });
+
+// ---------------------------------------------------------------- terminal valuation (E1)
+import { terminalFactor, applyValuation } from "../../example/agents/eris-adaptive-v1/features.js";
+import { markFor } from "../../example/agents/eris-adaptive-v1/arbitrage.js";
+
+test("terminal factor: 1 at the bell, persistence far from it", () => {
+  assert.equal(terminalFactor(0.2, 0.02, 0), 1);
+  assert.ok(Math.abs(terminalFactor(0.2, 0.02, 1e6) - 0.2) < 1e-12);
+  assert.ok(terminalFactor(0.2, 0.02, 50) > terminalFactor(0.2, 0.02, 100));
+  assert.equal(terminalFactor(1, 0.02, 300), 1);
+});
+
+test("terminal valuation off: marks equal the conservative fair", () => {
+  const { f } = featuresAfter({ fair: 2950 }, 6);
+  applyValuation(f, 0.2, P);
+  assert.equal(f.bases.WETH.terminal, f.bases.WETH.fair);
+});
+
+test("terminal valuation on: a fair below its anchor marks WETH up toward the anchor", () => {
+  const p = mergeParams(P, { valuation: { terminal: true } });
+  const st = freshState("v", 1);
+  for (let r = 1; r <= 6; r++) computeFeatures(makeObs({ round: r, fair: 3000 }), st, p);
+  const f = computeFeatures(makeObs({ round: 7, fair: 2950, blocksRemaining: 300 }), st, p);
+  applyForecast(f, 0);
+  applyValuation(f, 0.2, p);
+  const b = f.bases.WETH;
+  assert.equal(b.anchor, 3000);
+  assert.ok(b.terminal > b.fair && b.terminal < 3000);
+  assert.ok(markFor("buy", b, p) > b.fair, "buy mark includes haircut reversion");
+});
+
+test("regime: TREND on a slow sustained drift", () => {
+  const st = freshState("t", 1);
+  let f = computeFeatures(makeObs({ round: 1 }), st, P);
+  for (let r = 1; r <= 14; r++) {
+    const fair = 3000 * (1 + 0.0018 * r);
+    f = computeFeatures(makeObs({ round: r, fair, uni: fair, bal: fair, curve: fair }), st, P);
+  }
+  assert.equal(classify(f, st, P, false).regime, "TREND");
+});
+
+test("E2 bids: system fees above the cap are not rivals; big edges bid their ceiling", () => {
+  const p = mergeParams(P, { exec: { ignoreSystemFees: true, aggressiveProfitUsd: 25 } });
+  const { f } = featuresAfter({ competitorFeeWei: "6000000000" }); // the oracle's 6 gwei
+  assert.equal(chooseBid(f, p, 5, 220_000, 3000), 250_000_000n, "small edge: floor");
+  assert.equal(chooseBid(f, P, 5, 220_000, 3000) > 250_000_000n, true, "V1 chased the oracle");
+  const big = chooseBid(f, p, 100, 220_000, 3000);
+  assert.ok(big > 1_000_000_000n && big <= 5_000_000_000n, `big ${big}`);
+});

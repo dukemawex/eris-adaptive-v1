@@ -11,7 +11,7 @@
 import type { AgentObservation } from "@eris/sdk/types.js";
 import type { AgentContext } from "@eris/sdk/agent.js";
 import { loadParams, type Params, type Regime } from "./config.js";
-import { applyForecast, computeFeatures, type Features } from "./features.js";
+import { applyForecast, applyValuation, computeFeatures, type Features } from "./features.js";
 import { classify } from "./regime.js";
 import { pairCandidates, singleLegCandidates } from "./arbitrage.js";
 import {
@@ -112,10 +112,24 @@ export async function decideWith(
   ctx: Ctx,
   params: Params,
   st: AgentState,
-  opts: { victims?: string[]; quoter?: Quoter | null; readVictimAccounts?: (v: string[]) => Promise<VictimAccount[]> } = {},
+  opts: {
+    victims?: string[];
+    quoter?: Quoter | null;
+    readVictimAccounts?: (v: string[]) => Promise<VictimAccount[]>;
+    /** Top priority fee bid by another participant in the last block (null when unknown). */
+    participantMaxFee?: () => Promise<bigint | null>;
+  } = {},
 ): Promise<Decision> {
   st.stats.decisions++;
   const f = computeFeatures(obs, st, params);
+  if (params.exec.readParticipantFees && opts.participantMaxFee) {
+    try {
+      const fee = await opts.participantMaxFee();
+      if (fee !== null) f.maxCompetitorFeeWei = fee;
+    } catch {
+      /* keep the observation's figure */
+    }
+  }
   const realized = settlePending(st, f);
   const out: Decision = { regime: "UNKNOWN", submitted: [], returned: null, selected: [], candidates: [], rejected: [] };
 
@@ -156,6 +170,11 @@ export async function decideWith(
   }
   const profile = params.profiles[reading.regime];
   applyForecast(f, profile.momentumWeight);
+  if (reading.regime === "SHOCK" || reading.regime === "TREND") st.eventSeen = true;
+  const persistence = st.eventSeen
+    ? Math.max(profile.persistence, params.valuation.postEventPersistence)
+    : profile.persistence;
+  applyValuation(f, persistence, params);
 
   // ---- hard stops -----------------------------------------------------------------------------
   if (f.blocksRemaining !== null && f.blocksRemaining <= params.exec.stopAtBlocksRemaining) {
@@ -302,8 +321,33 @@ export async function decide(obs: AgentObservation, ctx: AgentContext): Promise<
     victims: VICTIMS,
     quoter: client ? onchainQuoter(client, budget) : null,
     readVictimAccounts: client ? (v) => readVictims(client, v) : undefined,
+    participantMaxFee: client
+      ? () => participantMaxFee(client, obs, ctx.address, BigInt(obs.limits?.maxPriorityFeePerGasWei ?? "0"))
+      : undefined,
   });
   return d.returned;
+}
+
+/**
+ * Highest priority fee another participant bid in the observed block: mined history only, our own
+ * transactions and the environment's system transactions (bid above the participant cap) excluded.
+ */
+async function participantMaxFee(
+  client: NonNullable<AgentContext["publicClient"]>,
+  obs: AgentObservation,
+  self: string,
+  cap: bigint,
+): Promise<bigint | null> {
+  const block = await client.getBlock({ blockNumber: BigInt(obs.blockNumber), includeTransactions: true });
+  let best = 0n;
+  for (const tx of block.transactions) {
+    if (typeof tx === "string") continue;
+    if (tx.from.toLowerCase() === String(self).toLowerCase()) continue;
+    const fee = tx.maxPriorityFeePerGas ?? 0n;
+    if (cap > 0n && fee > cap) continue;
+    if (fee > best) best = fee;
+  }
+  return best;
 }
 
 export { score };

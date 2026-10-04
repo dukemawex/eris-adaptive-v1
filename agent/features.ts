@@ -40,6 +40,12 @@ export type BaseFeature = {
   fair: number;
   /** One-block-ahead extrapolation of the fair (the observed fair is one block stale). */
   forecast: number;
+  /** Estimated level the fair reverts to. */
+  anchor: number;
+  /** Expected fair at the epoch's last block (= fair unless terminal valuation is on). */
+  terminal: number;
+  /** Fair return over the trend window, bps. */
+  trendBps: number;
   ret1Bps: number;
   retWindowBps: number;
   volShortBps: number;
@@ -188,6 +194,11 @@ export function computeFeatures(obs: AgentObservation, st: AgentState, params: P
     const w = params.regime.shockWindow;
     const prevW = hist.length > w ? hist[hist.length - 1 - w] : hist[0];
     const ret1 = prev1 > 0 ? fair / prev1 - 1 : 0;
+    const tw = params.regime.trendWindow;
+    const prevT = hist.length > tw ? hist[hist.length - 1 - tw] : hist[0];
+    if (st.anchor[base] === undefined) st.anchor[base] = fair;
+    else if (newBlock && params.valuation.anchorHalfLife > 0)
+      st.anchor[base] = ewma(st.anchor[base], fair, params.valuation.anchorHalfLife);
     const decimals = num(obs.baseDecimals?.[base]) ?? (base === "WBTC" ? 8 : 18);
     const balRaw = baseBalanceRaw(obs, base);
     const balance = toHuman(balRaw, decimals);
@@ -197,6 +208,9 @@ export function computeFeatures(obs: AgentObservation, st: AgentState, params: P
       decimals,
       fair,
       forecast: fair,
+      anchor: st.anchor[base],
+      terminal: fair,
+      trendBps: prevT > 0 ? (fair / prevT - 1) * 1e4 : 0,
       ret1Bps: ret1 * 1e4,
       retWindowBps: prevW > 0 ? (fair / prevW - 1) * 1e4 : 0,
       volShortBps: Math.sqrt(st.varShort[base] ?? 0) * 1e4,
@@ -299,4 +313,21 @@ export function computeFeatures(obs: AgentObservation, st: AgentState, params: P
 /** Set each base's forecast fair from its last one-block return and the regime's momentum weight. */
 export function applyForecast(f: Features, momentumWeight: number): void {
   for (const b of Object.values(f.bases)) b.forecast = b.fair * (1 + momentumWeight * (b.ret1Bps / 1e4));
+}
+
+/**
+ * Expected fair at the epoch's final block. The public reference price is an OU walk around an
+ * anchor (sdk/src/rng.ts nextFairPrice), with stress overlays that partly heal and drift episodes
+ * that sometimes re-anchor. So E[F_T] = A + (F - A) * phi, phi = p + (1 - p) * exp(-kappa * R):
+ * `p` is the share of the current deviation assumed permanent (regime-dependent), R the blocks left.
+ */
+export function terminalFactor(persistence: number, kappa: number, blocksLeft: number): number {
+  const p = Math.max(0, Math.min(1, persistence));
+  return p + (1 - p) * Math.exp(-Math.max(0, kappa) * Math.max(0, blocksLeft));
+}
+
+export function applyValuation(f: Features, persistence: number, params: Params): void {
+  const R = f.blocksRemaining ?? params.valuation.defaultHorizon;
+  const phi = params.valuation.terminal ? terminalFactor(persistence, params.valuation.kappa, R) : 1;
+  for (const b of Object.values(f.bases)) b.terminal = b.anchor + (b.fair - b.anchor) * phi;
 }

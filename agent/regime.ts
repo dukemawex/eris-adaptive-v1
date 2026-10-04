@@ -3,7 +3,8 @@
  * and never the scenario name, seed or event schedule — the hidden set is the same families under
  * other seeds, so the classifier has to recognise conditions, not runs.
  *
- * Priority when several conditions hold: LIQUIDATION > SHOCK > DEPEG > DISLOCATION > CALM.
+ * Priority when several conditions hold: LIQUIDATION > SHOCK > TREND > DEPEG > DISLOCATION > CALM.
+ * TREND is a sustained one-way move (a drift episode) too slow to be a SHOCK.
  * UNKNOWN is reported until enough history exists to judge volatility.
  */
 import type { Params, Regime } from "./config.js";
@@ -33,7 +34,9 @@ export function classify(
   const reasons: string[] = [];
   let shockMoveBps = 0;
   let volRatio = 0;
+  let trendBps = 0;
   for (const b of Object.values(f.bases)) {
+    trendBps = Math.max(trendBps, Math.abs(b.trendBps));
     shockMoveBps = Math.max(shockMoveBps, Math.abs(b.retWindowBps), Math.abs(b.ret1Bps));
     const longVol = Math.max(p.volFloorBps, b.volLongBps);
     volRatio = Math.max(volRatio, b.volShortBps / longVol);
@@ -69,6 +72,10 @@ export function classify(
   if (f.round <= st.shockUntil) {
     reasons.push(`shock hold until ${st.shockUntil}`);
     return reading("SHOCK");
+  }
+  if (f.historyLen > p.trendWindow && trendBps >= p.trendBps) {
+    reasons.push(`fair trended ${trendBps.toFixed(0)}bps over ${p.trendWindow} blocks`);
+    return reading("TREND");
   }
   if (f.historyLen < p.minHistory) {
     reasons.push(`history ${f.historyLen} < ${p.minHistory}`);

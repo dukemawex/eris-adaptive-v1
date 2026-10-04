@@ -31,8 +31,12 @@ export type AgentState = {
   gapHist: Record<string, number[]>;
   /** Uniswap in-range liquidity on the first observation, per base (for the depth ratio). */
   uniL0: Record<string, number>;
+  /** Estimated level the reference price reverts to, per base (first fair seen, then optionally EWMA). */
+  anchor: Record<string, number>;
   regime: Regime;
   regimeSince: number;
+  /** A SHOCK or TREND has been classified at some point in this run. */
+  eventSeen: boolean;
   shockUntil: number;
   /** pool key -> first round it may be traded again. */
   cooldownUntil: Record<string, number>;
@@ -66,8 +70,10 @@ export function freshState(runId: string, round: number): AgentState {
     varLong: {},
     gapHist: {},
     uniL0: {},
+    anchor: {},
     regime: "UNKNOWN",
     regimeSince: round,
+    eventSeen: false,
     shockUntil: -1,
     cooldownUntil: {},
     pending: [],

@@ -11,6 +11,7 @@ export type Regime =
   | "CALM"
   | "DISLOCATION"
   | "SHOCK"
+  | "TREND"
   | "DEPEG"
   | "LIQUIDATION"
   | "UNKNOWN";
@@ -19,6 +20,7 @@ export const REGIMES: readonly Regime[] = [
   "CALM",
   "DISLOCATION",
   "SHOCK",
+  "TREND",
   "DEPEG",
   "LIQUIDATION",
   "UNKNOWN",
@@ -35,6 +37,9 @@ export type RegimeProfile = {
   maxImpactBps: number;
   /** Multiplier on the per-base inventory deviation cap. */
   deviationCapMult: number;
+  /** Share of the current deviation from the anchor assumed permanent at the epoch's end (0..1);
+   *  the rest mean-reverts at rate kappa. 1 = mark at the current fair (no reversion view). */
+  persistence: number;
 };
 
 export type Params = {
@@ -58,8 +63,28 @@ export type Params = {
     /** EWMA half-lives (blocks) for short / long realised vol. */
     volHalfLifeShort: number;
     volHalfLifeLong: number;
+    /** |fair return| over `trendWindow` blocks (bps) that marks a TREND (a drift episode), when the
+     *  short-window move is below the SHOCK threshold. */
+    trendBps: number;
+    trendWindow: number;
   };
   profiles: Record<Regime, RegimeProfile>;
+
+  // ---- end-of-epoch valuation ---------------------------------------------------------------------
+  valuation: {
+    /** Mark inventory at the expected terminal fair instead of the current fair. */
+    terminal: boolean;
+    /** Mean-reversion speed of the reference price per block (prior; the public walk is OU). */
+    kappa: number;
+    /** Half-life (blocks) with which the anchor estimate follows the fair; 0 = keep the first one. */
+    anchorHalfLife: number;
+    /** Fraction of the modelled reversion not trusted (model-uncertainty haircut). */
+    haircut: number;
+    /** Blocks assumed remaining when the observation does not say. */
+    defaultHorizon: number;
+    /** Floor on persistence once a SHOCK or TREND has been seen in this run (levels can re-anchor). */
+    postEventPersistence: number;
+  };
 
   // ---- execution / gas -------------------------------------------------------------------------
   exec: {
@@ -69,6 +94,13 @@ export type Params = {
     bidProfitFraction: number;
     /** Bid this multiple of the top competitor fee seen in the last block, when affordable. */
     competitorBidMult: number;
+    /** Treat a competitor fee above the runtime's participant cap as the environment's own system
+     *  transactions (oracle/keeper bid above the cap) rather than a rival, and ignore it. */
+    ignoreSystemFees: boolean;
+    /** Read the last block ourselves to find the top *participant* bid (<= the cap, not ours). */
+    readParticipantFees: boolean;
+    /** Expected profit (USDC) from which an opportunity bids its full profit-capped ceiling. */
+    aggressiveProfitUsd: number;
     /** Gas units assumed per swap leg / Aave liquidation / Liquity liquidation (for cost only). */
     gasSwap: number;
     gasAaveLiquidation: number;
@@ -153,19 +185,33 @@ export const DEFAULT_PARAMS: Params = {
     dislocationBps: 25,
     volHalfLifeShort: 3,
     volHalfLifeLong: 40,
+    trendBps: 150,
+    trendWindow: 10,
   },
   profiles: {
-    CALM: { safetyBps: 4, momentumWeight: 0.25, slippageBps: 40, maxImpactBps: 120, deviationCapMult: 1 },
-    DISLOCATION: { safetyBps: 4, momentumWeight: 0.25, slippageBps: 50, maxImpactBps: 150, deviationCapMult: 1 },
-    SHOCK: { safetyBps: 20, momentumWeight: 1.0, slippageBps: 120, maxImpactBps: 400, deviationCapMult: 1.25 },
-    DEPEG: { safetyBps: 8, momentumWeight: 0.25, slippageBps: 50, maxImpactBps: 120, deviationCapMult: 1 },
-    LIQUIDATION: { safetyBps: 15, momentumWeight: 1.0, slippageBps: 100, maxImpactBps: 300, deviationCapMult: 1.25 },
-    UNKNOWN: { safetyBps: 15, momentumWeight: 0.5, slippageBps: 60, maxImpactBps: 100, deviationCapMult: 0.5 },
+    CALM: { safetyBps: 4, momentumWeight: 0.25, slippageBps: 40, maxImpactBps: 120, deviationCapMult: 1, persistence: 0.2 },
+    DISLOCATION: { safetyBps: 4, momentumWeight: 0.25, slippageBps: 50, maxImpactBps: 150, deviationCapMult: 1, persistence: 0.2 },
+    SHOCK: { safetyBps: 20, momentumWeight: 1.0, slippageBps: 120, maxImpactBps: 400, deviationCapMult: 1.25, persistence: 0.3 },
+    DEPEG: { safetyBps: 8, momentumWeight: 0.25, slippageBps: 50, maxImpactBps: 120, deviationCapMult: 1, persistence: 0.2 },
+    LIQUIDATION: { safetyBps: 15, momentumWeight: 1.0, slippageBps: 100, maxImpactBps: 300, deviationCapMult: 1.25, persistence: 0.3 },
+    TREND: { safetyBps: 8, momentumWeight: 1.0, slippageBps: 60, maxImpactBps: 150, deviationCapMult: 0.75, persistence: 1 },
+    UNKNOWN: { safetyBps: 15, momentumWeight: 0.5, slippageBps: 60, maxImpactBps: 100, deviationCapMult: 0.5, persistence: 0.5 },
+  },
+  valuation: {
+    terminal: false,
+    kappa: 0.02,
+    anchorHalfLife: 0,
+    haircut: 0.25,
+    defaultHorizon: 360,
+    postEventPersistence: 0.4,
   },
   exec: {
     minBidWei: "250000000", // 0.25 gwei: ahead of the environment's flow (<= 0.2 gwei)
     bidProfitFraction: 0.2,
     competitorBidMult: 1.25,
+    ignoreSystemFees: false,
+    readParticipantFees: false,
+    aggressiveProfitUsd: 1e12,
     gasSwap: 220_000,
     gasAaveLiquidation: 450_000,
     gasLiquityLiquidation: 700_000,

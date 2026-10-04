@@ -1,0 +1,11 @@
+# Experiment E1: terminal (OU-aware) valuation on, everything else as V1.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-e1
+    dir: eris-adaptive-e1
+    wallet: AUTO
+    env:
+      ERIS_AGENT_FROZEN: "1"
+      ERIS_ADAPTIVE_PARAMS: '{"valuation":{"terminal":true}}'
