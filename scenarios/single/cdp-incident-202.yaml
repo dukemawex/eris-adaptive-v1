@@ -1,0 +1,3 @@
+# Single public scenario cdp-incident#202 (config/scenarios/public.yaml).
+regimes: [cdp-incident]
+seeds: [202]
