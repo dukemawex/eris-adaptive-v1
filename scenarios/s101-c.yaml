@@ -1,3 +1,0 @@
-# Public regimes, split for parallel runs on separate anvils.
-regimes: [spike, depeg-persist, cdp-incident, launch]
-seeds: [101]
