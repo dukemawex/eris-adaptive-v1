@@ -1,0 +1,12 @@
+# Replicate of eris-v1.yaml (run-to-run noise control; separate tag so logs do not collide).
+# Champion V1 (all experiment flags at their defaults), staged from the instrumented code: its sends
+# are identical to the committed V1 (equivalence-checked); it also logs cumulative candidate and
+# rejection counts. Used for the baseline / V1 / E2 / E3 comparison.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-v1
+    dir: eris-adaptive-v1i
+    wallet: AUTO
+    env: { ERIS_AGENT_FROZEN: "1" }
