@@ -24,7 +24,7 @@ import {
 import { rank, score, select } from "./ranker.js";
 import { refineSingle } from "./refine.js";
 import { onchainQuoter, type Quoter } from "./quotes.js";
-import { chooseBid, gasStarved, spendableUsdc } from "./risk.js";
+import { chooseBid, gasStarved, gasUsd, spendableUsdc } from "./risk.js";
 import { bump, freshState, type AgentState } from "./state.js";
 import type { Opportunity, Rejection } from "./opportunity.js";
 
@@ -122,6 +122,7 @@ export async function decideWith(
 ): Promise<Decision> {
   st.stats.decisions++;
   const f = computeFeatures(obs, st, params);
+  const obsCompetitorFeeWei = f.maxCompetitorFeeWei;
   if (params.exec.readParticipantFees && opts.participantMaxFee) {
     try {
       const fee = await opts.participantMaxFee();
@@ -193,9 +194,16 @@ export async function decideWith(
 
   // ---- opportunities ---------------------------------------------------------------------------
   const ethUsd = f.bases.WETH?.fair ?? 0;
-  const baseBid = chooseBid(f, params, 0, 0, ethUsd);
+  // Scanner gas price. "v1" keeps V1's assumption whatever the bidding flags say (the observation's
+  // unfiltered competitor fee, no profit ceiling), so a bidding experiment changes only what is sent.
+  const v1ScanParams = { ...params, exec: { ...params.exec, ignoreSystemFees: false } };
+  const baseBid = chooseBid({ ...f, maxCompetitorFeeWei: obsCompetitorFeeWei }, v1ScanParams, 0, 0, ethUsd);
+  const gasFor =
+    params.exec.scanGas === "sent"
+      ? (profitUsd: number, units: number) => gasUsd(units, chooseBid(f, params, profitUsd, units, ethUsd), ethUsd)
+      : undefined;
   const blocked = new Set(Object.entries(st.cooldownUntil).filter(([, r]) => f.round < r).map(([k]) => k));
-  const sc = { f, params, regime: reading.regime, profile, spendableUsdc: spendable, bidWei: baseBid, blocked };
+  const sc = { f, params, regime: reading.regime, profile, spendableUsdc: spendable, bidWei: baseBid, gasFor, blocked };
   const singles = singleLegCandidates(sc);
   const pairs = pairCandidates(sc);
   out.rejected.push(...singles.rejected, ...pairs.rejected);
@@ -221,6 +229,7 @@ export async function decideWith(
   if (lqOpp) liqs.push(lqOpp);
   candidates = rank([...liqs, ...candidates]);
   out.candidates = candidates;
+  st.stats.candidates = (st.stats.candidates ?? 0) + candidates.length;
 
   const { selected, skipped } = select(candidates, f, params, profile, spendable, params.exec.maxActionsPerBlock + liqs.length);
   out.selected = selected;
@@ -306,6 +315,8 @@ function logSummary(ctx: Ctx, st: AgentState, f: Features, why: string, extra: R
       expectedUsd: round2(st.stats.expectedProfitUsd),
       realizedUsd: round2(st.stats.realizedProfitUsd),
       liquidations: st.stats.liquidations,
+      candidates: st.stats.candidates ?? 0,
+      rejected: st.stats.rejected,
     },
     deviationUsd: Object.fromEntries(Object.values(f.bases).map((b) => [b.base, Math.round(b.deviationUsd)])),
     ...extra,

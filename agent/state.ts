@@ -54,6 +54,8 @@ export type AgentState = {
     realizedSamples: number;
     liquidations: number;
     rejected: Record<string, number>;
+    /** Candidates that cleared the scanner (and exact-quote refinement), summed over blocks. */
+    candidates: number;
   };
 };
 
@@ -88,6 +90,7 @@ export function freshState(runId: string, round: number): AgentState {
       realizedSamples: 0,
       liquidations: 0,
       rejected: {},
+      candidates: 0,
     },
   };
 }

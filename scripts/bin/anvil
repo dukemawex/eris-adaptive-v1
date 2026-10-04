@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# anvil keeps history under $HOME/.foundry/anvil/tmp. Give each worker its own HOME for anvil so a
+# finished scenario's spill can be removed without touching a live one (scripts/run-queue.sh).
+export HOME="${ERIS_ANVIL_HOME:-$HOME}"
+exec "${ERIS_REAL_ANVIL:-/usr/local/bin/anvil}" "$@"

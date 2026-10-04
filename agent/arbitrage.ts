@@ -24,6 +24,9 @@ export type ScanContext = {
   spendableUsdc: number;
   /** Bid assumed for gas costing (wei/gas). */
   bidWei: bigint;
+  /** When set, gas cost (USDC) of a candidate from its expected profit before gas and its gas units
+   *  (exec.scanGas "sent"); otherwise every candidate is costed at `bidWei`. */
+  gasFor?: (profitUsd: number, gasUnits: number) => number;
   /** Pools that may not be traded this block (cooldown). */
   blocked: Set<string>;
 };
@@ -135,7 +138,7 @@ export function singleLegCandidates(sc: ScanContext): { opps: Opportunity[]; rej
     for (const m of params.risk.optimumMultiples) if (opt > 0) sizes.add(Math.min(opt * m, capIn));
     for (const fr of params.risk.sizeFractions) sizes.add(Math.min(available * fr, capIn));
 
-    let best: (Eval & { net: number; pen: number; ra: number; safety: number }) | null = null;
+    let best: (Eval & { net: number; pen: number; ra: number; safety: number; gas: number }) | null = null;
     let lastReason = "no size clears costs";
     for (const amount of [...sizes].sort((a, b) => a - b)) {
       if (!(amount > 0)) continue;
@@ -150,11 +153,12 @@ export function singleLegCandidates(sc: ScanContext): { opps: Opportunity[]; rej
         continue;
       }
       const safety = (e.notional * profile.safetyBps) / 1e4;
-      const net = e.gross - gas - safety;
+      const g = sc.gasFor ? sc.gasFor(e.gross - safety, params.exec.gasSwap) : gas;
+      const net = e.gross - g - safety;
       if (net < params.risk.minNetProfitUsd || (net / e.notional) * 1e4 < params.risk.minReturnBps) continue;
       const pen = inventoryPenalty(bf.deviationUsd, deltaUsd, params);
       const ra = net - pen;
-      if (!best || ra > best.ra) best = { ...e, net, pen, ra, safety };
+      if (!best || ra > best.ra) best = { ...e, net, pen, ra, safety, gas: g };
     }
     if (!best || best.ra <= 0) {
       rejected.push({ key: v.key, reason: best ? "inventory penalty" : lastReason });
@@ -174,7 +178,7 @@ export function singleLegCandidates(sc: ScanContext): { opps: Opportunity[]; rej
       grossProfitUsd: best.gross,
       feesUsd: (best.notional * v.feeBps) / 1e4,
       slippageUsd: (best.notional * best.impact) / 1e4,
-      gasUsd: gas,
+      gasUsd: best.gas,
       safetyUsd: best.safety,
       netProfitUsd: best.net,
       returnBps,
@@ -233,7 +237,7 @@ export function pairCandidates(sc: ScanContext): { opps: Opportunity[]; rejected
         const spreadBps = (b.mid / a.mid - 1) * 1e4 - a.feeBps - b.feeBps;
         if (!(spreadBps > profile.safetyBps)) continue; // the common case; not worth a log line
         const depth = Math.min(a.depth.x, b.depth.x);
-        let best: { q: number; u: number; out: number; net: number; notional: number; safety: number } | null = null;
+        let best: { q: number; u: number; out: number; net: number; notional: number; safety: number; gas: number } | null = null;
         for (const frac of [0.0005, 0.001, 0.002, 0.004, 0.008, 0.016, 0.03]) {
           const q = depth * frac;
           if (!(q > 0) || q >= a.depth.x) continue;
@@ -247,8 +251,10 @@ export function pairCandidates(sc: ScanContext): { opps: Opportunity[]; rejected
           const out = sellOut(b.depth, b.feeBps, qSell);
           const notional = u;
           const safety = (notional * profile.safetyBps) / 1e4;
-          const net = out + 0.001 * q * bf.fair - u - gas - safety;
-          if (!best || net > best.net) best = { q, u, out, net, notional, safety };
+          const gross = out + 0.001 * q * bf.fair - u;
+          const g = sc.gasFor ? sc.gasFor(gross - safety, 2 * params.exec.gasSwap) : gas;
+          const net = gross - g - safety;
+          if (!best || net > best.net) best = { q, u, out, net, notional, safety, gas: g };
         }
         if (!best || best.net < params.risk.minNetProfitUsd) {
           rejected.push({ key, reason: "pair does not clear costs" });
@@ -269,7 +275,7 @@ export function pairCandidates(sc: ScanContext): { opps: Opportunity[]; rejected
           grossProfitUsd: best.out - best.u + 0.001 * best.q * bf.fair,
           feesUsd: (best.notional * (a.feeBps + b.feeBps)) / 1e4,
           slippageUsd: 0,
-          gasUsd: gas,
+          gasUsd: best.gas,
           safetyUsd: best.safety,
           netProfitUsd: best.net,
           returnBps,

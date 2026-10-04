@@ -360,3 +360,44 @@ test("E2 bids: system fees above the cap are not rivals; big edges bid their cei
   const big = chooseBid(f, p, 100, 220_000, 3000);
   assert.ok(big > 1_000_000_000n && big <= 5_000_000_000n, `big ${big}`);
 });
+
+test("E2 filter: needs the cap stated in the observation", () => {
+  const p = mergeParams(P, { exec: { ignoreSystemFees: true } });
+  const { f } = featuresAfter({ competitorFeeWei: "6000000000" });
+  assert.equal(f.feeCapObserved, true);
+  assert.equal(chooseBid(f, p, 1000, 220_000, 3000), 250_000_000n, "above the stated cap: not a rival");
+  const noCap = { ...f, feeCapObserved: false };
+  assert.equal(chooseBid(noCap, p, 1000, 220_000, 3000), chooseBid(noCap, P, 1000, 220_000, 3000), "no stated cap: no filter");
+});
+
+/** Gas (USDC) the scanner charged the first uniswap WETH candidate, end to end through decideWith. */
+async function scannedGas(params: Params, uni: number): Promise<number | null> {
+  const st = freshState("run-test", 1);
+  const ctx = fakeCtx();
+  for (let r = 1; r <= 6; r++) await decideWith(makeObs({ round: r, competitorFeeWei: "6000000000" }), ctx, params, st, {});
+  const d = await decideWith(makeObs({ round: 7, uni, competitorFeeWei: "6000000000" }), ctx, params, st, {});
+  const o = d.candidates.find((c) => c.locks.includes("uniswap:WETH"));
+  return o ? o.gasUsd : null;
+}
+
+test("E2 changes what is sent, not what the scanner charges", async () => {
+  const e2 = mergeParams(P, { exec: { ignoreSystemFees: true } });
+  const v1 = await scannedGas(P, 2900);
+  assert.ok(v1 !== null && v1 > 3, `V1 charges the 5 gwei cap: ${v1}`);
+  assert.equal(await scannedGas(e2, 2900), v1);
+});
+
+test("E3 charges a candidate the bid it will be sent with, so smaller edges clear", async () => {
+  const e3 = mergeParams(P, { exec: { scanGas: "sent" } });
+  const big3 = await scannedGas(e3, 2900);
+  const big1 = await scannedGas(P, 2900);
+  assert.ok(big3 !== null && big1 !== null && big3 <= big1);
+  let found = false;
+  for (const uni of [2988, 2986, 2984, 2982, 2980, 2978, 2975]) {
+    const a = await scannedGas(P, uni);
+    const b = await scannedGas(e3, uni);
+    if (a !== null) assert.ok(b !== null && b <= a, `E3 never charges more (uni ${uni})`);
+    if (a === null && b !== null) found = true;
+  }
+  assert.ok(found, "some edge clears only when costed at the bid actually sent");
+});

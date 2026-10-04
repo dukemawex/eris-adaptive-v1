@@ -48,8 +48,10 @@ export function chooseBid(
   const hi = f.maxFeeWei >= lo ? f.maxFeeWei : lo;
   let bid = floor > lo ? floor : lo;
   let compRaw = f.maxCompetitorFeeWei;
-  // The environment's oracle/keeper transactions bid above the participant cap; they are not rivals.
-  if (params.exec.ignoreSystemFees && compRaw > hi) compRaw = 0n;
+  // A mined fee above the participant cap cannot be a participant's: the gateway rejects participant
+  // transactions over limits.maxPriorityFeePerGasWei (docs/spec/03-market.md, 05-agent-contract.md).
+  // Only applied when the observation states the cap; otherwise the fallback cap is a guess.
+  if (params.exec.ignoreSystemFees && f.feeCapObserved && compRaw > hi) compRaw = 0n;
   const comp = BigInt(Math.floor(Number(compRaw) * params.exec.competitorBidMult));
   if (comp > bid) bid = comp;
   if (aggressive) bid = hi;

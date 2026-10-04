@@ -8,6 +8,6 @@ ROSTER="$1"; SCEN="$2"; PORT="$3"; TAG="$4"
 mkdir -p "$HERE/logs"
 cd "$SIM"
 export ERIS_PYTHON="${ERIS_PYTHON:-$SIM/.venv/bin/python}"
-npm run backtest -- --scenarios "$SCEN" --agents "$ROSTER" --agent-sandbox process --port "$PORT" \
-  > "$HERE/logs/$TAG.log" 2>&1
+npm run backtest -- --scenarios "$SCEN" --agents "$ROSTER" --agent-sandbox process --port "$PORT" ${RESUME:+--resume "$RESUME"} \
+  >> "$HERE/logs/$TAG.log" 2>&1
 echo "done $TAG" >> "$HERE/logs/$TAG.log"

@@ -73,6 +73,8 @@ export type Features = {
   maxCompetitorFeeWei: bigint;
   defaultFeeWei: bigint;
   maxFeeWei: bigint;
+  /** The observation states the participant priority-fee cap (limits.maxPriorityFeePerGasWei). */
+  feeCapObserved: boolean;
   valid: boolean;
   invalidReason?: string;
 };
@@ -170,6 +172,7 @@ export function computeFeatures(obs: AgentObservation, st: AgentState, params: P
     maxCompetitorFeeWei: 0n,
     defaultFeeWei: 100_000_000n,
     maxFeeWei: 100_000_000n,
+    feeCapObserved: false,
     valid: false,
   };
   if (Object.keys(fairs).length === 0) return { ...empty, invalidReason: "no fair price" };
@@ -306,6 +309,7 @@ export function computeFeatures(obs: AgentObservation, st: AgentState, params: P
     maxCompetitorFeeWei: big(comp?.maxCompetitorPriorityFeeWei),
     defaultFeeWei: big(obs.limits?.defaultPriorityFeePerGasWei) || 100_000_000n,
     maxFeeWei: big(obs.limits?.maxPriorityFeePerGasWei) || 100_000_000n,
+    feeCapObserved: big(obs.limits?.maxPriorityFeePerGasWei) > 0n,
     valid: true,
   };
 }

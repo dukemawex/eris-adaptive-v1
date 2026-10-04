@@ -101,6 +101,10 @@ export type Params = {
     readParticipantFees: boolean;
     /** Expected profit (USDC) from which an opportunity bids its full profit-capped ceiling. */
     aggressiveProfitUsd: number;
+    /** Gas price the scanner costs candidates at. "v1": the bid with no profit ceiling from the
+     *  observation's unfiltered competitor fee (the participant cap whenever a system transaction
+     *  is in the last block). "sent": the bid the sender will actually attach to that candidate. */
+    scanGas: "v1" | "sent";
     /** Gas units assumed per swap leg / Aave liquidation / Liquity liquidation (for cost only). */
     gasSwap: number;
     gasAaveLiquidation: number;
@@ -212,6 +216,7 @@ export const DEFAULT_PARAMS: Params = {
     ignoreSystemFees: false,
     readParticipantFees: false,
     aggressiveProfitUsd: 1e12,
+    scanGas: "v1",
     gasSwap: 220_000,
     gasAaveLiquidation: 450_000,
     gasLiquityLiquidation: 700_000,
