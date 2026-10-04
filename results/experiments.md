@@ -29,6 +29,25 @@ scenarios; nothing here is tuned to the public `vuln` scenario.
 and 6 gwei, every `returned` / `submitted` identical); it additionally logs cumulative candidate and
 rejection counts at epoch end. E1 (terminal valuation) is not part of this batch.
 
+## Baseline vs V1 (60 public scenarios, measured 2026-10-04)
+
+| arm | total P | median | mean | worst | negative | stdev | reverts | gas USD | tx |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| baseline (my-arb-py) | 49,545 | 467 | 826 | −1,407 | 19 | 1,567 | 61 | 728 | 20,709 |
+| V1 | 182,764 | 2,076 | 3,046 | −689 | 2 | 2,882 | 1 | 12,350 | 8,252 |
+
+V1 is higher in 57 of 60 paired scenarios (lower: calm#404, cex-drift#101, cex-drift#505). Worst per
+regime (baseline → V1): calm −1,030 → 90, cdp-incident −1,009 → 1,719, cex-drift 2,779 → 2,514, crash
+−1,371 → 1,623, depeg −136 → 708, depeg-persist −1,378 → 716, informed-flow 117 → 1,602, launch −890 →
+−689, lending-incident −36 → 3,085, spike −1,407 → −45, vuln −241 → 345, whale 478 → 5,493. V1's two
+negative scenarios are launch#404 (−689) and spike#404 (−45).
+
+V1's gas spend is 6.8% of its P (17× the baseline's spend for 3.7× its P), the motivation for E2.
+V1's rejection reasons, summed over blocks and venues: inside fee band 55,111; no size clears costs
+39,324; cooldown 22,499; pair does not clear costs 15,970; inventory penalty 10,566; inventory cap
+6,605; no spendable USDC 2,769. "No size clears costs" is where the scanner's gas assumption (E3) bites.
+Runtime rejections: 0 in both arms.
+
 ---
 
 ## E2: competitor-bid estimator excludes system transactions
@@ -67,9 +86,14 @@ cut gas spend with no loss of inclusion, raising P.
 - Profile check: the public regimes run `economicGas: false` (cap 5 gwei, system transactions above
   it, docs/spec/02-runtime.md §2.2). Under `economicGas: true` the stated cap is 10^18 and the rule
   never fires, so it degrades to V1's behaviour rather than to a wrong estimate.
-- Audit against the simulator's own labels (blocks.csv `role`, never visible to agents): see the
-  measurements; the first 18 baseline runs had 54,512 mined above-cap transactions, all `system`, none
-  from participants, and no `system` transaction at or below the cap.
+- Audit against the simulator's own labels (blocks.csv `role`, never visible to agents), over the 120
+  baseline and V1 runs: 469,858 mined transactions above the cap. 468,740 are `system` (oracle /
+  keeper); the other 1,118 are the `launch` regime's environment flow (`uninformed-flow`, owners
+  `flow-launch*`, token-launch waves, all at 6 gwei). None is a competing agent's. No `system`
+  transaction was mined at or below the cap. Correction to the first version of this note, which said
+  every above-cap fee was a system transaction: the rule is "a fee above the cap is not a participant's
+  and cannot be outbid", not "it is a system transaction". Since a participant cannot bid above the
+  cap, chasing such a fee buys no position in either case.
 
 Verdict: legitimate; the approach is kept.
 
