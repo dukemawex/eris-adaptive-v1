@@ -1,0 +1,3 @@
+# Public regimes, split for parallel runs on separate anvils.
+regimes: [lending-incident, crash, depeg, vuln]
+seeds: [101]

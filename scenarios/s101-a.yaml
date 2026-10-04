@@ -1,0 +1,3 @@
+# Public regimes, split for parallel runs on separate anvils.
+regimes: [calm, cex-drift, informed-flow, whale]
+seeds: [101]
