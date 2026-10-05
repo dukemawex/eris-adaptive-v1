@@ -157,7 +157,36 @@ is brought to two runs per arm (tags `v1rep` / `e2rep`); each arm's P on a flagg
 mean of its two runs, and criteria 2 and 3 are re-evaluated on those values (reverts as the mean per
 run). Criterion 1 stays on the first pass. No further re-runs after this round.
 
-**Decision.** Pending the re-runs.
+**Re-runs (two runs per arm on each flagged scenario).**
+
+| scenario | V1 runs | E2 runs | reverts V1 / E2 |
+|---|---|---|---|
+| cdp-incident#303 | 1,719 / 1,253 | 1,520 / 1,979 | 0,0 / 0,0 |
+| cex-drift#505 | 2,514 / 1,904 | 2,066 / 2,066 | 0,0 / 0,0 |
+| crash#101 | 1,623 / 1,679 | 1,148 / 1,855 | 0,0 / 0,0 |
+| informed-flow#202 | 1,602 / −285 | −86 / −86 | 0,1 / 1,1 |
+| launch#404 | −689 / −864 | −352 / −32 | 0,0 / 0,0 |
+| spike#404 | −45 / −45 | −122 / 153 | 1,1 / 0,1 |
+| whale#101 | 11,544 / 13,108 | 10,889 / 13,039 | 0,0 / 1,0 |
+
+With flagged scenarios at the mean of their two runs: overall worst V1 −776, E2 −192; every regime's
+worst within tolerance **except informed-flow** (V1 658, E2 −86; tolerance 100); negative scenarios 2 vs
+2; reverts (mean per run) **1.5 vs 2.0**.
+
+**Diagnosis.** In informed-flow#202, V1's re-run and both E2 runs made the identical 106 trades
+(same blocks, ids and amounts) and mined the identical 152 transactions with identical statuses,
+including the one revert; V1 scored −285, E2 −86, the +199 being gas (0.0718 → 0.0046 ETH). V1's
+1,602 came from its first run taking a different path (95 trades). Across all runs, 17 of the 60
+scenarios have a V1 run and an E2 run with an identical trade path; on every one E2 is ahead, by +158
+to +236 (exactly the gas saved). E2 never trades differently from V1 given the same path; the
+per-scenario failures above are path noise, and so are the reverts (the same reverts occur on the same
+path in both arms).
+
+**Decision: not promoted under the rule as written** (criterion 2 fails on informed-flow, criterion 3
+fails on reverts 2.0 vs 1.5). V1 stays champion. The evidence that E2 is a strict improvement (lower
+gas, unchanged ordering and trades) is strong; promoting it would mean changing the rule after seeing
+the results, which is left to the owner, not done here. A rule that compares arms on matched paths,
+or with more runs per scenario, would settle it on measurements.
 
 ---
 
