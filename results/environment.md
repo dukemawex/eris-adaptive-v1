@@ -57,3 +57,16 @@ was not possible (blocked host). The deploy completed and every venue passed the
   growing). Nine concurrent runs exhausted RAM (load average 70, runs discarded); the disk allowance
   also filled from spill left by killed anvils. Runs are now 4 concurrent, one 5-scenario matrix per
   anvil, with exited anvils' spill removed between matrices (`scripts/run-worker.sh`).
+
+## Practice environment rebuild (announced 2026-10-05, 22:00–01:00 JST): impact check
+
+Checked against `agent/` at the time of the announcement:
+
+| change | impact on eris-adaptive-v1 |
+|---|---|
+| `pending` block tag returns 403 (nonce reads excepted) | none: the agent never uses `pending`; reads are `latest` (viem default) and past blocks by number (`participantMaxFee`) |
+| GMX market orders only, >20x cancelled | none: the agent does not trade GMX |
+| env vars ending in `TOKEN`/`AUTH`/`SECRET`/`API_KEY`/`PASSWORD`/`MNEMONIC` not passed to `decide()` | none: it reads `ERIS_ADAPTIVE_PARAMS`, `ERIS_LIQUIDATION_VICTIMS`, `ERIS_AGENT_FROZEN` |
+| all venue addresses change | the agent's quoter (Uniswap QuoterV2, Balancer vault) and Aave reads take addresses from `@eris/sdk/constants.js`, the same overlay the runtime uses; regenerate it after the rebuild (`DEPLOYMENTS_JSON=<devnet>/deployments.json npm run gen:local-constants`, docs/guide/practice-devnet.md) and re-fetch `manifest.json`. A stale overlay is caught by the runtime's preflight deployment check; inside `decide()` a failed quote degrades to the model estimate at confidence 0.5 and a failed Aave read to "no victims" |
+| GMX fees / liquidation rules | none (no GMX) |
+| scoring calculation | unknown until the update notes; every P in `results/` was measured under the scoring of the simulator checkout used for these runs and must be re-measured if the official definition changes |
