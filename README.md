@@ -57,12 +57,28 @@ npm run backtest -- --regime calm --seed 101 --agents config/agents/eris-adaptiv
 binaries.soliditylang.org: Foundry comes from npm and solc from solcjs behind a native-CLI shim
 (`scripts/solc-shim.cjs`, registered for forge and Hardhat).
 
-### Before bundling a submission
+### Submitting to ASCON
 
-`gen:local-constants` rewrites `sdk/src/constants.local.ts` with the addresses of *your* local
-deploy. Restore the committed file (`git checkout sdk/src/constants.local.ts`) in the simulator
-checkout before `npm run bundle:agent eris-adaptive-v1`, so the bundle carries the operator's
-addresses like every other agent.
+Checked against simulator `f07fcef` (2026-10-05 environment update):
+
+```bash
+scripts/sync.sh                                   # agent/ -> example/agents/eris-adaptive-v1
+cd ../nyxfoundation/eris-agent-simulator
+git checkout sdk/src/constants.local.ts           # the operator's addresses, not your local deploy's
+npm run typecheck
+npm run check:strategy -- example/agents/eris-adaptive-v1/*.ts
+npm run bundle:agent eris-adaptive-v1             # -> bundle-eris-adaptive-v1.zip
+python3 infra/submission/scan-submission.py bundle-eris-adaptive-v1.zip   # expect ACCEPT
+```
+
+The ZIP goes in through the submission form (up to 5 a day; the last one accepted by the end of Oct
+31 is evaluated). The agent needs no environment variables: the champion's settings are the code
+defaults, and `ERIS_LIQUIDATION_VICTIMS` comes from the environment. It has no dependencies of its
+own, so no lock file is needed. `prompt.md` (`kind: improve`, `reviseEveryBlocks: 120`) is the
+revision policy the rules require; revisions run on the inference API key you register.
+
+`gen:local-constants` rewrites `sdk/src/constants.local.ts` for local backtests; regenerate it after
+bundling if you go back to backtesting.
 
 ## Rules this agent keeps
 
