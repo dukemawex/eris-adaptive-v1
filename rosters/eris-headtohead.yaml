@@ -1,0 +1,16 @@
+# Head-to-head field in one world: benchmark, the starter, the strongest bundled arbitrageurs, and
+# eris-adaptive-v1. Used for the deviation-score comparison (T) rather than isolated PnL.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: my-arb-py
+    wallet: AUTO
+    env: { ERIS_AGENT_FROZEN: "1" }
+  - id: multi-arb
+    wallet: AUTO
+  - id: max-profit-arb
+    wallet: AUTO
+  - id: eris-adaptive-v1
+    wallet: AUTO
+    env: { ERIS_AGENT_FROZEN: "1" }

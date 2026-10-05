@@ -1,0 +1,13 @@
+# Experiment E3 (scanner gas assumption only): each candidate is costed at the bid the sender will
+# attach to it (exec.scanGas "sent") instead of V1's profit-uncapped estimate (the 5 gwei cap in the
+# public regimes). Bidding is V1's. Everything else as V1.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-e3
+    dir: eris-adaptive-e3
+    wallet: AUTO
+    env:
+      ERIS_AGENT_FROZEN: "1"
+      ERIS_ADAPTIVE_PARAMS: '{"exec":{"scanGas":"sent"}}'

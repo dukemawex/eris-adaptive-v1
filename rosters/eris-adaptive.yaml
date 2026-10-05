@@ -1,0 +1,8 @@
+# Candidate field: the do-nothing benchmark plus eris-adaptive-v1 (champion defaults: V1 + E2 bidding), frozen.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-adaptive-v1
+    wallet: AUTO
+    env: { ERIS_AGENT_FROZEN: "1" }

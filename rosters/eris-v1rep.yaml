@@ -1,0 +1,12 @@
+# Replicate of eris-v1.yaml (run-to-run noise control; separate tag so logs do not collide).
+# V1 with its bidding pinned (E2 flags off).
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-v1
+    dir: eris-adaptive-v1i
+    wallet: AUTO
+    env:
+      ERIS_AGENT_FROZEN: "1"
+      ERIS_ADAPTIVE_PARAMS: '{"exec":{"ignoreSystemFees":false,"readParticipantFees":false}}'

@@ -1,0 +1,13 @@
+# V1 (the champion until 2026-10-05), staged from the instrumented code with V1's bidding pinned
+# (E2's flags off), so it stays reproducible after E2 became the default. Its sends are identical to
+# the committed V1 (equivalence-checked); it also logs cumulative candidate and rejection counts.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-v1
+    dir: eris-adaptive-v1i
+    wallet: AUTO
+    env:
+      ERIS_AGENT_FROZEN: "1"
+      ERIS_ADAPTIVE_PARAMS: '{"exec":{"ignoreSystemFees":false,"readParticipantFees":false}}'

@@ -1,0 +1,3 @@
+# Single public scenario vuln#101 (config/scenarios/public.yaml).
+regimes: [vuln]
+seeds: [101]
