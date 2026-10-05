@@ -213,8 +213,10 @@ export const DEFAULT_PARAMS: Params = {
     minBidWei: "250000000", // 0.25 gwei: ahead of the environment's flow (<= 0.2 gwei)
     bidProfitFraction: 0.2,
     competitorBidMult: 1.25,
-    ignoreSystemFees: false,
-    readParticipantFees: false,
+    // E2, champion since 2026-10-05 (results/experiments.md): the competitor bid ignores fees above
+    // the stated participant cap and is read from the last block without our own transactions.
+    ignoreSystemFees: true,
+    readParticipantFees: true,
     aggressiveProfitUsd: 1e12,
     scanGas: "v1",
     gasSwap: 220_000,

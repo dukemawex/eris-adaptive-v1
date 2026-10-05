@@ -16,6 +16,8 @@ import type { Opportunity } from "../../example/agents/eris-adaptive-v1/opportun
 import { fakeCtx, makeObs, type FixtureOpts } from "./fixtures.js";
 
 const P: Params = DEFAULT_PARAMS;
+/** V1's bidding (before E2 was promoted): the unfiltered competitor fee from the observation. */
+const V1P: Params = mergeParams(P, { exec: { ignoreSystemFees: false, readParticipantFees: false } });
 
 /** Features after `warm` identical calm blocks then the given block. */
 function featuresAfter(last: FixtureOpts, warm = 6, base: FixtureOpts = {}) {
@@ -356,7 +358,7 @@ test("E2 bids: system fees above the cap are not rivals; big edges bid their cei
   const p = mergeParams(P, { exec: { ignoreSystemFees: true, aggressiveProfitUsd: 25 } });
   const { f } = featuresAfter({ competitorFeeWei: "6000000000" }); // the oracle's 6 gwei
   assert.equal(chooseBid(f, p, 5, 220_000, 3000), 250_000_000n, "small edge: floor");
-  assert.equal(chooseBid(f, P, 5, 220_000, 3000) > 250_000_000n, true, "V1 chased the oracle");
+  assert.equal(chooseBid(f, V1P, 5, 220_000, 3000) > 250_000_000n, true, "V1 chased the oracle");
   const big = chooseBid(f, p, 100, 220_000, 3000);
   assert.ok(big > 1_000_000_000n && big <= 5_000_000_000n, `big ${big}`);
 });
@@ -367,7 +369,7 @@ test("E2 filter: needs the cap stated in the observation", () => {
   assert.equal(f.feeCapObserved, true);
   assert.equal(chooseBid(f, p, 1000, 220_000, 3000), 250_000_000n, "above the stated cap: not a rival");
   const noCap = { ...f, feeCapObserved: false };
-  assert.equal(chooseBid(noCap, p, 1000, 220_000, 3000), chooseBid(noCap, P, 1000, 220_000, 3000), "no stated cap: no filter");
+  assert.equal(chooseBid(noCap, p, 1000, 220_000, 3000), chooseBid(noCap, V1P, 1000, 220_000, 3000), "no stated cap: no filter");
 });
 
 /** Gas (USDC) the scanner charged the first uniswap WETH candidate, end to end through decideWith. */
@@ -381,8 +383,8 @@ async function scannedGas(params: Params, uni: number): Promise<number | null> {
 }
 
 test("E2 changes what is sent, not what the scanner charges", async () => {
-  const e2 = mergeParams(P, { exec: { ignoreSystemFees: true } });
-  const v1 = await scannedGas(P, 2900);
+  const e2 = mergeParams(V1P, { exec: { ignoreSystemFees: true } });
+  const v1 = await scannedGas(V1P, 2900);
   assert.ok(v1 !== null && v1 > 3, `V1 charges the 5 gwei cap: ${v1}`);
   assert.equal(await scannedGas(e2, 2900), v1);
 });
@@ -400,4 +402,12 @@ test("E3 charges a candidate the bid it will be sent with, so smaller edges clea
     if (a === null && b !== null) found = true;
   }
   assert.ok(found, "some edge clears only when costed at the bid actually sent");
+});
+
+test("champion defaults: E2 bidding is on, scanner gas stays V1's", () => {
+  assert.equal(P.exec.ignoreSystemFees, true);
+  assert.equal(P.exec.readParticipantFees, true);
+  assert.equal(P.exec.scanGas, "v1");
+  const { f } = featuresAfter({ competitorFeeWei: "6000000000" });
+  assert.equal(chooseBid(f, P, 1000, 220_000, 3000), 250_000_000n, "does not chase the oracle");
 });

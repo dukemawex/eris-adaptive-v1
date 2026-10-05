@@ -1,4 +1,4 @@
-# Candidate field: the do-nothing benchmark plus eris-adaptive-v1, frozen (deterministic V1).
+# Candidate field: the do-nothing benchmark plus eris-adaptive-v1 (champion defaults: V1 + E2 bidding), frozen.
 agents:
   - id: noop
     wallet: AUTO

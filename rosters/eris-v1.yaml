@@ -1,6 +1,6 @@
-# Champion V1 (all experiment flags at their defaults), staged from the instrumented code: its sends
-# are identical to the committed V1 (equivalence-checked); it also logs cumulative candidate and
-# rejection counts. Used for the baseline / V1 / E2 / E3 comparison.
+# V1 (the champion until 2026-10-05), staged from the instrumented code with V1's bidding pinned
+# (E2's flags off), so it stays reproducible after E2 became the default. Its sends are identical to
+# the committed V1 (equivalence-checked); it also logs cumulative candidate and rejection counts.
 agents:
   - id: noop
     wallet: AUTO
@@ -8,4 +8,6 @@ agents:
   - id: eris-v1
     dir: eris-adaptive-v1i
     wallet: AUTO
-    env: { ERIS_AGENT_FROZEN: "1" }
+    env:
+      ERIS_AGENT_FROZEN: "1"
+      ERIS_ADAPTIVE_PARAMS: '{"exec":{"ignoreSystemFees":false,"readParticipantFees":false}}'

@@ -1,6 +1,10 @@
 # Experiments
 
-Each entry: hypothesis → exact change → measurements → decision. **The champion stays V1** until a
+**Champion: V1 + E2 bidding** (since 2026-10-05; `exec.ignoreSystemFees` and
+`exec.readParticipantFees` on by default). History: V1 → V1 + E2 (owner decision, see "Promotion of
+E2" below).
+
+Each entry: hypothesis → exact change → measurements → decision. The champion stays until a
 challenger wins on measured results. Promotion rule (all three required, on the 60 public scenarios,
 12 regimes × seeds 101–505, paired against V1 on the same scenarios):
 
@@ -20,7 +24,7 @@ scenarios; nothing here is tuned to the public `vuln` scenario.
 | arm | roster | agent dir | params |
 |---|---|---|---|
 | baseline | `eris-baseline.yaml` | `my-arb-py` (official starter, frozen) | – |
-| V1 (champion) | `eris-v1.yaml` | `eris-adaptive-v1i` | defaults |
+| V1 (champion until 2026-10-05) | `eris-v1.yaml` | `eris-adaptive-v1i` | E2 flags pinned off |
 | E2 | `eris-e2.yaml` | `eris-adaptive-e2` | `exec.ignoreSystemFees`, `exec.readParticipantFees` |
 | E3 | `eris-e3.yaml` | `eris-adaptive-e3` | `exec.scanGas: "sent"` |
 
@@ -187,6 +191,16 @@ fails on reverts 2.0 vs 1.5). V1 stays champion. The evidence that E2 is a stric
 gas, unchanged ordering and trades) is strong; promoting it would mean changing the rule after seeing
 the results, which is left to the owner, not done here. A rule that compares arms on matched paths,
 or with more runs per scenario, would settle it on measurements.
+
+**Promotion of E2 (2026-10-05, owner decision).** The owner promoted E2 to champion, overriding the
+pre-registered rule above, on the matched-path evidence: on every one of the 17 scenarios where V1
+and E2 made identical trades, E2 was ahead by the gas it saved (+158 to +236), and E2 never changed
+ordering, trades or reverts given the same path. The rule's failures (informed-flow worst case,
+reverts 2.0 vs 1.5) were judged path noise. This is a departure from the rule, recorded as such; the
+rule's measurements stand as reported. Change: `exec.ignoreSystemFees: true`,
+`exec.readParticipantFees: true` in `agent/config.ts` defaults; the scanner keeps V1's gas assumption
+(`exec.scanGas: "v1"`). E3 above was measured against V1 with V1's bidding; any future experiment is
+paired against the new champion.
 
 ---
 
