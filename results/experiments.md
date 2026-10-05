@@ -48,6 +48,38 @@ V1's rejection reasons, summed over blocks and venues: inside fee band 55,111; n
 6,605; no spendable USDC 2,769. "No size clears costs" is where the scanner's gas assumption (E3) bites.
 Runtime rejections: 0 in both arms.
 
+## Run-to-run noise (V1 re-run, measured 2026-10-05)
+
+The same agent on the same scenario does not give the same P: blocks are mined in real time (2 s), so
+whether a transaction lands in the next block or the one after depends on wall-clock timing, and the
+environment flow reacts to the prices our trades leave. V1 re-run unchanged (`rosters/eris-v1rep.yaml`)
+on the 12 regimes at seed 101 plus informed-flow#202:
+
+| scenario | V1 | V1 re-run | Δ |
+|---|---:|---:|---:|
+| calm#101 | 1,141 | 1,633 | +493 |
+| cdp-incident#101 | 1,831 | 1,831 | 0 |
+| cex-drift#101 | 3,625 | 3,699 | +74 |
+| crash#101 | 1,623 | 1,679 | +56 |
+| depeg#101 | 1,410 | 1,188 | −222 |
+| depeg-persist#101 | 1,240 | 672 | −568 |
+| informed-flow#101 | 3,199 | 2,140 | −1,059 |
+| informed-flow#202 | 1,602 | −285 | −1,887 |
+| launch#101 | 527 | 636 | +109 |
+| lending-incident#101 | 6,061 | 6,364 | +303 |
+| spike#101 | 4,037 | 5,351 | +1,314 |
+| vuln#101 | 787 | 787 | 0 |
+| whale#101 | 11,544 | 13,108 | +1,565 |
+
+Median |Δ| 303, SD of Δ 859 USDC per scenario. Some scenarios reproduce exactly (cdp-incident#101,
+vuln#101; E2's informed-flow#202 gave −86 twice), others swing by more than 1,000.
+
+Consequence for the promotion rule: a single run per scenario resolves an arm's *aggregate* (60
+scenarios, SD of the mean difference about 859/√60 ≈ 110) but not its per-scenario or per-regime worst
+case: a −1,887 swing on one scenario is within V1's own noise. The rule is kept as written; where a
+criterion fails on a single scenario, the decision says whether that scenario's gap is outside the
+noise measured here, and such scenarios are re-run before the decision is final.
+
 ---
 
 ## E2: competitor-bid estimator excludes system transactions
