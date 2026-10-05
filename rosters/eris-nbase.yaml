@@ -1,0 +1,9 @@
+# Baseline on the 2026-10-05 environment: the do-nothing benchmark plus the official Python starter
+# (my-arb-py), frozen. Same field as eris-baseline.yaml; separate tag so its logs stay apart.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: my-arb-py
+    wallet: AUTO
+    env: { ERIS_AGENT_FROZEN: "1" }
