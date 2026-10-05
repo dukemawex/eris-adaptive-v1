@@ -129,9 +129,35 @@ cut gas spend with no loss of inclusion, raising P.
 
 Verdict: legitimate; the approach is kept.
 
-**Measurements.** Pending (runs queued after baseline and V1).
+**Measurements (first pass, 60 scenarios, one run each).**
 
-**Decision.** Pending.
+| arm | total P | median | mean | worst | negative | stdev | reverts | runtime rejects | gas USD |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| V1 | 182,764 | 2,076 | 3,046 | −689 | 2 | 2,882 | 1 | 0 | 12,350 |
+| E2 | 185,557 | 2,141 | 3,093 | −352 | 3 | 2,811 | 2 | 2 | 832 |
+
+Paired: E2 higher in 41, lower in 19; median diff +165, total +2,792. Gas saved 11,518 (≈ +192 per
+scenario); the rest of the P difference (−8,726 total, about 1.3 standard errors at the measured
+noise) is not distinguishable from run-to-run noise. Worst per regime (V1 → E2): calm 90 → 707,
+cdp-incident 1,719 → 1,520, cex-drift 2,514 → 2,066, crash 1,623 → 1,148, depeg 708 → 839,
+depeg-persist 716 → 1,067, informed-flow 1,602 → −86, launch −689 → −352, lending-incident 3,085 →
+3,251, spike −45 → −122, vuln 345 → 983, whale 5,493 → 5,647.
+
+Inclusion check (informed-flow#202, blocks.csv): V1 bid 5.0 gwei (median), E2 0.25 gwei; the highest
+environment-flow bid was 0.199 gwei. In both arms no non-system transaction was ever ordered ahead of
+ours, so E2 gave up no block position; its losses there are not an ordering effect.
+
+Rule, first pass: (1) passes; (2) overall worst passes, but cdp-incident, cex-drift, crash and
+informed-flow fall more than the tolerance; (3) fails narrowly (negative 3 vs 2, reverts 2 vs 1).
+
+**Re-run protocol (fixed before the re-runs).** Flagged scenarios: the worst-per-regime scenario of
+each arm in a failing regime, every negative scenario and every scenario with a revert:
+cdp-incident#303, cex-drift#505, crash#101, informed-flow#202, launch#404, spike#404, whale#101. Each
+is brought to two runs per arm (tags `v1rep` / `e2rep`); each arm's P on a flagged scenario becomes the
+mean of its two runs, and criteria 2 and 3 are re-evaluated on those values (reverts as the mean per
+run). Criterion 1 stays on the first pass. No further re-runs after this round.
+
+**Decision.** Pending the re-runs.
 
 ---
 
