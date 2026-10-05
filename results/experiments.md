@@ -265,3 +265,35 @@ re-runs cannot change criterion 1 under the protocol. E2+E3 is not run (E3 did n
 **Follow-up hypothesis (not tested).** The 5 gwei assumption was acting as an implicit minimum-edge
 filter that protects pool capacity. A scanner cost that is right per trade needs an opportunity cost
 for the cooldown and the per-block slot, e.g. a minimum net per pool-block, before smaller edges help.
+
+---
+
+## Re-measurement on the current simulator (`f07fcef`, 2026-10-05)
+
+After the 2026-10-05 environment update was announced, the simulator checkout was moved from
+`3bee7ec` (2026-10-04) to `f07fcef`, the local environment rebuilt as the update notes require
+(vendors, deploy, `gen:local-constants`, `gen:state-dump`, `build:contracts`), and baseline and
+champion re-run on the 60 public scenarios (`rosters/eris-nbase.yaml`, `rosters/eris-champ.yaml`;
+the champion is the `eris-adaptive-v1` directory that `bundle:agent` ships).
+
+| arm | total P | median | mean | worst | negative | stdev | reverts | runtime rejects | gas USD | tx |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| baseline (my-arb-py) | 48,948 | 441 | 816 | −1,407 | 20 | 1,581 | 54 | 0 | 728 | 20,705 |
+| champion (V1 + E2) | 196,341 | 2,033 | 3,272 | −352 | 1 | 3,099 | 1 | 3 | 829 | 8,230 |
+
+The champion is higher in 59 of 60 paired scenarios (lower: cex-drift#505, 2,066 vs 2,779). Worst per
+regime (baseline → champion): calm −1,030 → 707, cdp-incident −1,009 → 1,464, cex-drift 2,779 → 2,066,
+crash −1,371 → 1,380, depeg −136 → 896, depeg-persist −1,378 → 789, informed-flow 117 → 1,779, launch
+−935 → −352, lending-incident −36 → 3,279, spike −1,407 → 153, vuln −241 → 558, whale 478 → 5,542.
+
+**The earlier measurements were already on this environment.** The baseline (a deterministic starter)
+reproduces its 2026-10-04 P exactly in 55 of 60 scenarios (median |Δ| 0.02 USDC); the commits between
+the two checkouts are the LST yield clock (#248), a scoring read change (#250), practice episodes and
+docs. The update notes describe changes that were already merged into `3bee7ec`. The champion's runs
+differ from the earlier E2 runs (same settings) by a median 115 USDC per scenario, inside the
+run-to-run noise measured above; 16 of 60 reproduce exactly. The V1 / E2 / E3 comparisons above
+therefore stand on the current environment.
+
+Runtime rejections: 3, all in cex-drift#202, "amountIn exceeds balance" (rejected before signing, no
+gas spent). The agent occasionally sizes a sell from a balance that an earlier, not-yet-mined trade
+on another pool of the same base already spends. Follow-up, not fixed here.
