@@ -224,6 +224,30 @@ total P; the sent bids themselves are unchanged.
 the same call and arguments the sender uses (`net + gas = gross − safety`). Bidding unchanged (V1's
 estimator, unfiltered). Exact-quote refinement keeps the scan-time gas figure.
 
-**Measurements.** Pending (runs queued after E2).
+**Measurements (60 scenarios, one run each).**
 
-**Decision.** Pending. E2+E3 is run only if both E2 and E3 independently pass the promotion rule.
+| arm | total P | median | mean | worst | negative | stdev | reverts | runtime rejects | gas USD | tx | selected |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| V1 | 182,764 | 2,076 | 3,046 | −689 | 2 | 2,882 | 1 | 0 | 12,350 | 8,252 | 7,675 |
+| E3 | 182,648 | 2,070 | 3,044 | −494 | 1 | 3,077 | 6 | 4 | 14,194 | 12,933 | 11,812 |
+
+Paired: E3 higher in 33, lower in 27; median diff +57, total −116. Worst per regime (V1 → E3): calm
+90 → 122, cdp-incident 1,719 → 1,179, cex-drift 2,514 → 3,258, crash 1,623 → 713, depeg 708 → 434,
+depeg-persist 716 → 569, informed-flow 1,602 → 422, launch −689 → −494, lending-incident 3,085 →
+3,136, spike −45 → 132, vuln 345 → 265, whale 5,493 → 6,266.
+
+**What happened.** The scanner change did what it was meant to: "no size clears costs" fell from
+39,324 to 30,581 and "pair does not clear costs" from 15,970 to 11,443, so E3 found and sent 54% more
+opportunities. They did not add P. The agent's own epoch-end accounting shows why: E3 took 31% more
+trades (8,708 vs 6,657 opportunities) but its summed *expected* profit is lower (188,678 vs 209,960).
+Every trade puts its pool on cooldown for the next block and uses one of the three per-block slots;
+"cooldown" rejections rose from 22,499 to 34,772. The extra small edges are taken first and crowd out
+the larger edges that appear a block later on the same pool. Gas also rose ($14,194 vs $12,350), since
+bidding stayed V1's.
+
+**Decision: not promoted.** Criterion 1 fails on the first pass (total and median both below V1);
+re-runs cannot change criterion 1 under the protocol. E2+E3 is not run (E3 did not pass on its own).
+
+**Follow-up hypothesis (not tested).** The 5 gwei assumption was acting as an implicit minimum-edge
+filter that protects pool capacity. A scanner cost that is right per trade needs an opportunity cost
+for the cooldown and the per-block slot, e.g. a minimum net per pool-block, before smaller edges help.
