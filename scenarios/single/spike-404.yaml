@@ -1,0 +1,3 @@
+# Single public scenario spike#404 (config/scenarios/public.yaml).
+regimes: [spike]
+seeds: [404]

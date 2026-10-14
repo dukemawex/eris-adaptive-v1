@@ -1,0 +1,9 @@
+# Champion (V1 + E2 bidding, the code defaults) on the 2026-10-05 environment, frozen. This is the
+# agent directory that bundle:agent ships.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-adaptive-v1
+    wallet: AUTO
+    env: { ERIS_AGENT_FROZEN: "1" }

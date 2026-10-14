@@ -1,0 +1,3 @@
+# Single public scenario calm#202 (config/scenarios/public.yaml).
+regimes: [calm]
+seeds: [202]

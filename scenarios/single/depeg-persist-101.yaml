@@ -1,0 +1,3 @@
+# Single public scenario depeg-persist#101 (config/scenarios/public.yaml).
+regimes: [depeg-persist]
+seeds: [101]

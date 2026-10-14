@@ -1,0 +1,3 @@
+# Single public scenario launch#202 (config/scenarios/public.yaml).
+regimes: [launch]
+seeds: [202]

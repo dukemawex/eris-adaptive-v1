@@ -1,0 +1,3 @@
+# Single public scenario informed-flow#202 (config/scenarios/public.yaml).
+regimes: [informed-flow]
+seeds: [202]

@@ -1,0 +1,3 @@
+# Single public scenario whale#101 (config/scenarios/public.yaml).
+regimes: [whale]
+seeds: [101]

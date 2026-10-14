@@ -1,0 +1,3 @@
+# Single public scenario crash#404 (config/scenarios/public.yaml).
+regimes: [crash]
+seeds: [404]

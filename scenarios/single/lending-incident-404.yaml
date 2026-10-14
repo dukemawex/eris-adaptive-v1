@@ -1,0 +1,3 @@
+# Single public scenario lending-incident#404 (config/scenarios/public.yaml).
+regimes: [lending-incident]
+seeds: [404]

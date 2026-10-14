@@ -1,0 +1,13 @@
+# Experiment E2 (bidding estimator only): the competitor bid excludes mined fees above the stated
+# participant cap and is read from the last block (own transactions excluded). The scanner keeps V1's
+# gas assumption (exec.scanGas "v1"); aggressiveProfitUsd stays off. Everything else as V1.
+agents:
+  - id: noop
+    wallet: AUTO
+    baseline: true
+  - id: eris-e2
+    dir: eris-adaptive-e2
+    wallet: AUTO
+    env:
+      ERIS_AGENT_FROZEN: "1"
+      ERIS_ADAPTIVE_PARAMS: '{"exec":{"ignoreSystemFees":true,"readParticipantFees":true}}'
